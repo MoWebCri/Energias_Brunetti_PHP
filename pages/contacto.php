@@ -1,107 +1,7 @@
 <?php include '../includes/header.php'; ?>
 
-/**
- * Función para validar un RUT chileno
- * @param string $rut El RUT a validar
- * @return bool True si el RUT es válido, False en caso contrario
- */
-function validarRut($rut) {
-    // Eliminar puntos y guión del RUT
-    $rut = str_replace(['.', '-'], '', $rut);
-    
-    // Validar formato
-    if (!preg_match('/^[0-9]{7,8}[0-9K]$/', $rut)) {
-        return false;
-    }
-    
-    // Separar número y dígito verificador
-    $numero = substr($rut, 0, strlen($rut) - 1);
-    $dv = strtoupper(substr($rut, -1));
-    
-    // Calcular dígito verificador
-    $factor = 2;
-    $suma = 0;
-    
-    for ($i = strlen($numero) - 1; $i >= 0; $i--) {
-        $suma += $numero[$i] * $factor;
-        $factor = $factor == 7 ? 2 : $factor + 1;
-    }
-    
-    $dvCalculado = 11 - ($suma % 11);
-    
-    if ($dvCalculado == 11) {
-        $dvCalculado = '0';
-    } elseif ($dvCalculado == 10) {
-        $dvCalculado = 'K';
-    } else {
-        $dvCalculado = (string)$dvCalculado;
-    }
-    
-    return $dv == $dvCalculado;
-}
-
-/**
- * Función para verificar el límite de envíos por email
- * @param string $email Dirección de correo electrónico
- * @param int $limite Límite de envíos permitidos (5 por defecto)
- * @return bool True si no se ha excedido el límite, False en caso contrario
- */
-function verificarLimiteEnvios($email, $limite = 5) {
-    $archivo_registro = "../logs/envios_email.json";
-    $tiempo_actual = time();
-    $tiempo_limite = 24 * 60 * 60; // 24 horas en segundos
-    
-    // Crear directorio de logs si no existe
-    if (!is_dir("../logs")) {
-        @mkdir("../logs", 0755, true);
-    }
-    
-    // Leer archivo de registro o crear uno nuevo
-    if (file_exists($archivo_registro)) {
-        $registro = json_decode(file_get_contents($archivo_registro), true);
-    } else {
-        $registro = [];
-    }
-    
-    // Limpiar registros antiguos (más de 24 horas)
-    foreach ($registro as $email_registro => $datos) {
-        foreach ($datos as $timestamp => $count) {
-            if ($tiempo_actual - $timestamp > $tiempo_limite) {
-                unset($registro[$email_registro][$timestamp]);
-            }
-        }
-        // Eliminar emails sin registros
-        if (empty($registro[$email_registro])) {
-            unset($registro[$email_registro]);
-        }
-    }
-    
-    // Verificar límite para el email actual
-    $contador = 0;
-    if (isset($registro[$email])) {
-        foreach ($registro[$email] as $count) {
-            $contador += $count;
-        }
-    }
-    
-    // Si no ha excedido el límite, registrar el envío
-    if ($contador < $limite) {
-        if (!isset($registro[$email])) {
-            $registro[$email] = [];
-        }
-        $registro[$email][$tiempo_actual] = 1;
-        file_put_contents($archivo_registro, json_encode($registro));
-        return true;
-    }
-    
-    return false;
-}
-
-// Mensajes de error
-$errores = [];
-
-// Procesar el formulario cuando se envía
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+<!-- Procesar el formulario cuando se envía -->
+<?php if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Recoger los datos del formulario y sanitizarlos
     $empresa = isset($_POST['empresa']) ? htmlspecialchars(trim($_POST['empresa'])) : '';
     $rut = isset($_POST['rut']) ? htmlspecialchars(trim($_POST['rut'])) : '';
@@ -110,66 +10,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $telefono = isset($_POST['telefono']) ? htmlspecialchars(trim($_POST['telefono'])) : '';
     $mensaje = isset($_POST['mensaje']) ? htmlspecialchars(trim($_POST['mensaje'])) : '';
     
-    // Validar RUT
-    if (!validarRut($rut)) {
-        $errores[] = "El RUT ingresado no es válido. Por favor verifica el formato y el dígito verificador.";
+    // Destinatario del correo (el correo de la empresa)
+    $para = "contacto@mowebcri.com";
+    
+    // Asunto del correo
+    $asunto = "Nuevo mensaje de contacto desde el sitio web - " . $empresa;
+    
+    // Construir el cuerpo del mensaje
+    $mensaje_correo = "Se ha recibido un nuevo mensaje desde el formulario de contacto:\n\n";
+    $mensaje_correo .= "Empresa: " . $empresa . "\n";
+    $mensaje_correo .= "RUT: " . $rut . "\n";
+    $mensaje_correo .= "Nombre: " . $nombre . "\n";
+    $mensaje_correo .= "Email: " . $email . "\n";
+    $mensaje_correo .= "Teléfono: " . $telefono . "\n\n";
+    $mensaje_correo .= "Mensaje:\n" . $mensaje . "\n";
+    
+    // Guardar una copia del mensaje en un archivo de registro
+    $fecha_hora = date('Y-m-d H:i:s');
+    $log_mensaje = "====================\n";
+    $log_mensaje .= "Fecha y Hora: " . $fecha_hora . "\n";
+    $log_mensaje .= $mensaje_correo . "\n";
+    
+    $archivo_log = "../logs/contactos.log";
+    // Asegurar que el directorio exista
+    if (!is_dir("../logs")) {
+        @mkdir("../logs", 0755, true);
     }
     
-    // Verificar límite de envíos por email
-    if (!verificarLimiteEnvios($email)) {
-        $errores[] = "Has excedido el límite de 5 envíos en 24 horas. Por favor, intenta más tarde o contáctanos por WhatsApp.";
-    }
+    // Intentar guardar en el archivo de registro
+    @file_put_contents($archivo_log, $log_mensaje, FILE_APPEND);
     
-    // Si no hay errores, proceder con el envío
-    if (empty($errores)) {
-        // Destinatario del correo (el correo de la empresa)
-        $para = "contacto@mowebcri.com";
-        
-        // Asunto del correo
-        $asunto = "Nuevo mensaje de contacto desde el sitio web - " . $empresa;
-        
-        // Construir el cuerpo del mensaje
-        $mensaje_correo = "Se ha recibido un nuevo mensaje desde el formulario de contacto:\n\n";
-        $mensaje_correo .= "Empresa: " . $empresa . "\n";
-        $mensaje_correo .= "RUT: " . $rut . "\n";
-        $mensaje_correo .= "Nombre: " . $nombre . "\n";
-        $mensaje_correo .= "Email: " . $email . "\n";
-        $mensaje_correo .= "Teléfono: " . $telefono . "\n\n";
-        $mensaje_correo .= "Mensaje:\n" . $mensaje . "\n";
-        
-        // Guardar una copia del mensaje en un archivo de registro
-        $fecha_hora = date('Y-m-d H:i:s');
-        $log_mensaje = "====================\n";
-        $log_mensaje .= "Fecha y Hora: " . $fecha_hora . "\n";
-        $log_mensaje .= $mensaje_correo . "\n";
-        
-        $archivo_log = "../logs/contactos.log";
-        // Asegurar que el directorio exista
-        if (!is_dir("../logs")) {
-            @mkdir("../logs", 0755, true);
-        }
-        
-        // Intentar guardar en el archivo de registro
-        @file_put_contents($archivo_log, $log_mensaje, FILE_APPEND);
-        
-        // Cabeceras del correo
-        $cabeceras = "From: contacto@mowebcri.com\r\n"; // Usar el dominio propio para evitar problemas de spam
-        $cabeceras .= "Reply-To: " . $email . "\r\n";
-        $cabeceras .= "X-Mailer: PHP/" . phpversion() . "\r\n";
-        $cabeceras .= "MIME-Version: 1.0\r\n";
-        $cabeceras .= "Content-Type: text/plain; charset=UTF-8\r\n";
-        
-        // Enviar el correo
-        $enviado = @mail($para, $asunto, $mensaje_correo, $cabeceras);
-        
-        // Variable para mostrar mensaje de éxito o error
-        $mensaje_estado = "";
-        
-        if ($enviado) {
-            $mensaje_estado = "success";
-        } else {
-            $mensaje_estado = "error";
-        }
+    // Cabeceras del correo
+    $cabeceras = "From: contacto@mowebcri.com\r\n"; // Usar el dominio propio para evitar problemas de spam
+    $cabeceras .= "Reply-To: " . $email . "\r\n";
+    $cabeceras .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    $cabeceras .= "MIME-Version: 1.0\r\n";
+    $cabeceras .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    
+    // Enviar el correo
+    $enviado = @mail($para, $asunto, $mensaje_correo, $cabeceras);
+    
+    // Variable para mostrar mensaje de éxito o error
+    $mensaje_estado = "";
+    
+    if ($enviado) {
+        $mensaje_estado = "success";
+    } else {
+        $mensaje_estado = "error";
     }
 } ?>
 
@@ -208,16 +95,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-8" role="alert">
             <strong class="font-bold">¡Error!</strong>
             <span class="block sm:inline"> No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde o contáctanos directamente por WhatsApp.</span>
-        </div>
-        <?php elseif (!empty($errores)): ?>
-        <!-- Errores de validación -->
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-8" role="alert">
-            <strong class="font-bold">¡Error!</strong>
-            <ul class="mt-2 list-disc list-inside">
-                <?php foreach ($errores as $error): ?>
-                <li><?php echo $error; ?></li>
-                <?php endforeach; ?>
-            </ul>
         </div>
         <?php endif; ?>
         
@@ -377,111 +254,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 </section>
-
-<!-- Scripts adicionales para esta página -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Validación del RUT en tiempo real
-        const rutInput = document.getElementById('rut');
-        if (rutInput) {
-            rutInput.addEventListener('blur', function() {
-                const rutValue = this.value.trim();
-                if (rutValue !== '') {
-                    if (!validarRutJs(rutValue)) {
-                        this.classList.add('border-red-500');
-                        this.classList.remove('border-gray-300');
-                        
-                        // Verificar si ya existe un mensaje de error
-                        let errorElement = this.parentNode.parentNode.querySelector('.rut-error');
-                        if (!errorElement) {
-                            errorElement = document.createElement('p');
-                            errorElement.className = 'rut-error text-red-500 text-xs mt-1';
-                            this.parentNode.parentNode.appendChild(errorElement);
-                        }
-                        errorElement.textContent = 'RUT inválido. Formato correcto: 12.345.678-9';
-                    } else {
-                        this.classList.remove('border-red-500');
-                        this.classList.add('border-gray-300');
-                        
-                        // Eliminar mensaje de error si existe
-                        const errorElement = this.parentNode.parentNode.querySelector('.rut-error');
-                        if (errorElement) {
-                            errorElement.remove();
-                        }
-                    }
-                }
-            });
-            
-            // Formatear RUT mientras se escribe
-            rutInput.addEventListener('input', function() {
-                let value = this.value.replace(/[^0-9kK-]/g, '');
-                
-                // Aplicar formato 12.345.678-9
-                if (value.length > 1) {
-                    let result = '';
-                    let parts = value.split('-');
-                    let num = parts[0].replace(/\./g, '');
-                    
-                    // Formatear la parte numérica
-                    for (let i = 0; i < num.length; i++) {
-                        if (i > 0 && i % 3 === 0 && i < num.length - 1) {
-                            result = '.' + result;
-                        }
-                        result = num[num.length - 1 - i] + result;
-                    }
-                    
-                    // Añadir guión y dígito verificador
-                    if (parts.length > 1) {
-                        result += '-' + parts[1].substring(0, 1);
-                    } else if (value.includes('-')) {
-                        result += '-';
-                    }
-                    
-                    this.value = result;
-                }
-            });
-        }
-    });
-    
-    // Función para validar RUT chileno en JavaScript
-    function validarRutJs(rut) {
-        // Eliminar puntos y guión
-        rut = rut.replace(/\./g, '').replace(/-/g, '');
-        
-        // Validar formato
-        if (!/^[0-9]{7,8}[0-9kK]$/i.test(rut)) {
-            return false;
-        }
-        
-        // Separar número y dígito verificador
-        const dv = rut.slice(-1).toUpperCase();
-        const numero = parseInt(rut.slice(0, -1), 10);
-        
-        // Calcular dígito verificador
-        let suma = 0;
-        let multiplicador = 2;
-        
-        // Recorrer dígitos de derecha a izquierda
-        let numeroStr = numero.toString();
-        for (let i = numeroStr.length - 1; i >= 0; i--) {
-            suma += parseInt(numeroStr.charAt(i), 10) * multiplicador;
-            multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
-        }
-        
-        // Calcular dígito verificador
-        let dvCalculado = 11 - (suma % 11);
-        
-        // Convertir a string según reglas del RUT
-        if (dvCalculado === 11) {
-            dvCalculado = '0';
-        } else if (dvCalculado === 10) {
-            dvCalculado = 'K';
-        } else {
-            dvCalculado = dvCalculado.toString();
-        }
-        
-        // Comparar con el dígito verificador del RUT
-        return dv === dvCalculado;
-    }
-</script>
 <?php include '../includes/footer.php'; ?> 
