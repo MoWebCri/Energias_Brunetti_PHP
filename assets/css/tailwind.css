@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Colores Principales */
+    --blue-900: 10 35 66;    /* Azul oscuro principal */
+    --blue-800: 27 59 111;   /* Azul medio */
+    --blue-700: 42 115 214;  /* Azul claro */
+    --blue-600: 75 143 226;  /* Azul acento */
+    --blue-500: 107 165 232; /* Azul suave */
+
+    /* Colores Secundarios */
+    --green-600: 46 125 50;  /* Verde oscuro */
+    --green-500: 67 160 71;  /* Verde principal */
+    --green-400: 102 187 106; /* Verde claro */
+    --green-300: 129 199 132; /* Verde suave */
+
+    /* Colores Neutrales */
+    --neutral-900: 26 26 26; /* Negro */
+    --neutral-700: 74 74 74; /* Gris oscuro */
+    --neutral-500: 117 117 117; /* Gris medio */
+    --neutral-300: 224 224 224; /* Gris claro */
+    --neutral-100: 245 245 245; /* Gris muy claro */
+    --neutral-50: 250 250 250;  /* Gris fondo */
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all duration-300 cursor-pointer;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-700 text-white hover:bg-blue-800 hover:-translate-y-0.5 hover:shadow-md;
+  }
+  
+  .btn-secondary {
+    @apply bg-green-500 text-white hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-md;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+  
+  .card-image {
+    @apply w-full h-48 overflow-hidden relative;
+  }
+  
+  .card-content {
+    @apply p-6;
+  }
+  
+  .container {
+    @apply mx-auto px-4 max-w-7xl;
+  }
+  
+  .section {
+    @apply py-16;
+  }
+  
+  .section-title {
+    @apply text-3xl font-bold text-blue-900 mb-8 text-center;
+  }
+} 

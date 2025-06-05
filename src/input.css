@@ -1,0 +1,76 @@
+/* ./src/input.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Utilidades personalizadas */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Componentes personalizados */
+@layer components {
+  .btn {
+    @apply inline-block px-6 py-2 rounded font-medium transition-all duration-300 cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply inline-block bg-primary text-white font-semibold py-2.5 px-5 rounded transition-colors;
+  }
+
+  .btn-primary:hover {
+    @apply bg-opacity-90;
+  }
+
+  .btn-secondary {
+    @apply inline-block border border-primary text-primary font-semibold py-2.5 px-5 rounded transition-colors;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-primary text-white;
+  }
+
+  .btn-light {
+    @apply bg-white text-primary hover:bg-gray-100 hover:-translate-y-1;
+  }
+
+  .hero-title {
+    @apply text-4xl md:text-5xl font-bold mb-4 text-shadow;
+  }
+
+  .hero-subtitle {
+    @apply text-xl mb-8 text-shadow;
+  }
+
+  .section-title {
+    @apply text-2xl md:text-3xl font-bold mb-4;
+  }
+
+  .section-subtitle {
+    @apply text-lg text-gray-600 mb-8;
+  }
+
+  .title-line {
+    @apply w-12 h-1 bg-accent mb-6;
+  }
+
+  .container {
+    @apply px-4 mx-auto;
+  }
+
+  .section {
+    @apply py-16 md:py-24;
+  }
+  
+  /* En lugar de .bg-dark y .text-accent que causan referencias circulares,
+     usaremos clases diferentes para evitar conflictos */
+  .bg-dark-custom {
+    @apply bg-dark text-white;
+  }
+  
+  .text-accent-custom {
+    @apply text-accent;
+  }
+} 
